@@ -93,7 +93,7 @@ func WaitForModule(process windows.Handle, name string, timeout time.Duration) e
 		if err == nil && found {
 			return nil
 		}
-		if err != nil && !errors.Is(err, windows.ERROR_BAD_LENGTH) {
+		if err != nil && !retryableModuleSnapshotError(err) {
 			return fmt.Errorf("inspect modules while waiting for %s: %w", name, err)
 		}
 
@@ -110,4 +110,8 @@ func WaitForModule(process windows.Handle, name string, timeout time.Duration) e
 
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+func retryableModuleSnapshotError(err error) bool {
+	return errors.Is(err, windows.ERROR_BAD_LENGTH) || errors.Is(err, windows.ERROR_PARTIAL_COPY)
 }

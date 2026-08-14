@@ -97,6 +97,7 @@ jobs:
       - name: Build injector and fixtures
         shell: pwsh
         run: |
+          go test ./...
           New-Item -ItemType Directory -Force dist | Out-Null
           $env:GOOS = "windows"
           $env:GOARCH = "386"
