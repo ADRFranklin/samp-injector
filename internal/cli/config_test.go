@@ -50,3 +50,39 @@ func TestParse_rejectsInvalidReadinessOptions(t *testing.T) {
 		t.Fatalf("error = %v, want ErrUsage", err)
 	}
 }
+
+func TestParse_versionDoesNotRequireSessionPaths(t *testing.T) {
+	cfg, err := Parse([]string{"--version"}, new(bytes.Buffer))
+	if err != nil {
+		t.Fatalf("Parse(--version) error: %v", err)
+	}
+	if !cfg.ShowVersion {
+		t.Error("Parse(--version) ShowVersion = false, want true")
+	}
+}
+
+func TestParse_rejectsUnsupportedEventMode(t *testing.T) {
+	_, err := Parse([]string{"--events=xml"}, new(bytes.Buffer))
+	if !errors.Is(err, ErrUsage) {
+		t.Errorf("Parse(--events=xml) error = %v, want ErrUsage", err)
+	}
+}
+
+func TestWantsJSONEvents(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{name: "equals", args: []string{"--events=json"}, want: true},
+		{name: "separate", args: []string{"--events", "json"}, want: true},
+		{name: "forwarded", args: []string{"--", "--events=json"}, want: false},
+		{name: "absent", args: []string{"--game", "gta_sa.exe"}, want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := WantsJSONEvents(test.args); got != test.want {
+				t.Errorf("WantsJSONEvents(%q) = %t, want %t", test.args, got, test.want)
+			}
+		})
+	}
+}

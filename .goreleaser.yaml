@@ -20,6 +20,7 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
+      - -X main.version={{ .Version }}
 
 archives:
   - id: windows-386

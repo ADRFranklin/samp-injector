@@ -79,11 +79,73 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  integration:
+    name: Test Windows injection
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build injector and fixtures
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $env:GOOS = "windows"
+          $env:GOARCH = "386"
+          $env:CGO_ENABLED = "0"
+          go build -trimpath -o dist/samp-injector.exe ./cmd/samp-injector
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = & $vswhere -latest -property installationPath
+          $vcvars = Join-Path $visualStudio "VC\Auxiliary\Build\vcvars32.bat"
+          cmd /s /c "`"$vcvars`" && cl /nologo /W4 /WX internal\integration\testdata\test-target.c /Fe:dist\test-target.exe && cl /nologo /W4 /WX /LD internal\integration\testdata\test-injected.c /Fe:dist\test-injected.dll"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Exercise real injection lifecycle
+        shell: pwsh
+        run: |
+          $root = (Resolve-Path dist).Path
+          $version = & "$root\samp-injector.exe" --version
+          if ($LASTEXITCODE -ne 0 -or $version -ne "samp-injector dev") {
+            throw "--version output was '$version', want 'samp-injector dev'"
+          }
+          $process = Start-Process `
+            -FilePath "$root\samp-injector.exe" `
+            -ArgumentList "--events=json", "--game", "$root\test-target.exe", "--dll", "$root\test-injected.dll", "--wait-module", "kernel32.dll" `
+            -RedirectStandardOutput "$root\events.jsonl" `
+            -RedirectStandardError "$root\injector.stderr" `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 5) {
+            Get-Content "$root\injector.stderr"
+            throw "injector exit code was $($process.ExitCode), want 5"
+          }
+          $events = @(Get-Content "$root\events.jsonl" | ForEach-Object { $_ | ConvertFrom-Json })
+          $names = @($events | ForEach-Object { $_.event })
+          $want = @("launched", "waiting", "injecting", "injected", "game-exited")
+          if (Compare-Object $names $want -SyncWindow 0) {
+            throw "event order was '$($names -join ',')', want '$($want -join ',')'"
+          }
+          if ($events | Where-Object { $_.version -ne 1 }) {
+            throw "an event did not use protocol version 1"
+          }
+          if ($events[-1].code -ne 5) {
+            throw "game-exited code was $($events[-1].code), want 5"
+          }
+
   release:
     name: Release
     needs:
       - check
       - build
+      - integration
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

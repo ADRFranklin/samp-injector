@@ -10,8 +10,10 @@ import (
 	"git.justmichael.xyz/omp-tools/samp-injector/internal/exitcode"
 )
 
+var version = "dev"
+
 func main() {
-	code := app.Run(os.Args[1:], os.Stderr)
+	code := app.Run(os.Args[1:], os.Stdout, os.Stderr, version)
 	if code != exitcode.Success {
 		os.Exit(code)
 	}

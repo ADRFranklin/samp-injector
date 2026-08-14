@@ -29,6 +29,8 @@ Options:
 --wait-module <filename>      module to wait for; default: vorbisFile.dll
 --no-wait-module              inject without waiting for a module
 --wait-timeout <duration>     readiness timeout; default: 30s
+--events=json                 write JSON lifecycle events to stdout
+--version                     print the injector version and exit
 ```
 
 The readiness comparison uses the module basename and is case-insensitive. The wait is bounded.
@@ -49,6 +51,18 @@ The injector-specific exit codes are:
 
 After a successfully injected session, GTA's exit code is returned.
 
+## Launcher events
+
+Use `--events=json` to write versioned JSON lifecycle events to stdout. Diagnostics remain on stderr.
+
+```json
+{"version":1,"event":"launched"}
+{"version":1,"event":"injected"}
+{"version":1,"event":"game-exited","code":0}
+```
+
+Failures emit an `error` event with a stable `phase` and a readable `message`. Launchers should use these events because GTA's exit code can overlap an injector failure code. Use `--version` to identify the injector build.
+
 ## Wine and Proton
 
 The binary is Windows-only. The caller must provide the Wine or Proton environment and invoke the executable there. The injector does not discover prefixes, installations, Steam, or Proton.
@@ -63,7 +77,7 @@ Run the portable tests with:
 go test -race -shuffle=on -count=1 ./...
 ```
 
-Win32 behavior needs a Windows-compatible environment and a 32-bit target fixture. The release binary does not need a C or C++ runtime.
+CI also builds a small 32-bit Windows target and DLL, performs a real injection, and verifies the JSON event order and overlapping game exit code. The release binary does not need a C or C++ runtime.
 
 ## Development
 
