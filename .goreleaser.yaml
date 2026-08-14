@@ -23,12 +23,11 @@ builds:
 
 archives:
   - id: windows-386
-    builds:
+    ids:
       - samp-injector
-    format: zip
+    formats:
+      - binary
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
-    files:
-      - none*
 
 checksum:
   name_template: checksums.txt
