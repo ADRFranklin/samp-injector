@@ -16,6 +16,7 @@ const (
 	waitObject      = 0
 	waitTimeout     = 258
 	stillActive     = 259
+	infinite        = 0xffffffff
 )
 
 // Process owns a launched GTA process and its kill-on-close Job Object.
@@ -133,7 +134,10 @@ func (p Process) ExitCode() (uint32, error) {
 }
 
 func durationMilliseconds(timeout time.Duration) uint32 {
-	if timeout <= 0 {
+	if timeout < 0 {
+		return infinite
+	}
+	if timeout == 0 {
 		return 0
 	}
 	ms := timeout / time.Millisecond

@@ -19,7 +19,6 @@ const (
 	pageReadWrite    = 0x04
 	processAllAccess = 0x001F0FFF
 	threadAllAccess  = 0x001F03FF
-	infinite         = 0xffffffff
 )
 
 var (
