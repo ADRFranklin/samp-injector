@@ -1,0 +1,38 @@
+version: 2
+
+project_name: samp-injector
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: samp-injector
+    main: ./cmd/samp-injector
+    binary: samp-injector
+    goos:
+      - windows
+    goarch:
+      - 386
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+archives:
+  - id: windows-386
+    builds:
+      - samp-injector
+    format: zip
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - none*
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  mode: replace
+  make_latest: true

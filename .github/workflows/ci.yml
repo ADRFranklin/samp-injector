@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25.12"
+  TASK_VERSION: "3.52.0"
+  GOFUMPT_VERSION: "v0.11.0"
+  GOLANGCI_LINT_VERSION: "v2.12.2"
+  GORELEASER_VERSION: "v2.12.7"
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Set up Task
+        uses: go-task/setup-task@v2
+        with:
+          version: ${{ env.TASK_VERSION }}
+
+      - name: Install Go tools
+        run: |
+          go install mvdan.cc/gofumpt@${GOFUMPT_VERSION}
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
+
+      - name: Run checks
+        run: task check
+
+  build:
+    name: Build Windows 386
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build executable
+        env:
+          GOOS: windows
+          GOARCH: 386
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          go build -trimpath -o dist/samp-injector-windows-386.exe ./cmd/samp-injector
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v7
+        with:
+          name: samp-injector-windows-386-${{ github.sha }}
+          path: dist/samp-injector-windows-386.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Release
+    needs:
+      - check
+      - build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

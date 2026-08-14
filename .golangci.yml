@@ -1,0 +1,30 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - errorlint
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unconvert
+    - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintln
+        - (*os.File).Close
+        - golang.org/x/sys/windows.CloseHandle
+        - golang.org/x/sys/windows.TerminateProcess
+        - golang.org/x/sys/windows.Proc.Call
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

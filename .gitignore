@@ -1,0 +1,6 @@
+dist/
+.omo/
+coverage.out
+coverage.html
+*.test
+*.prof

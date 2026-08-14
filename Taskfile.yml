@@ -1,0 +1,54 @@
+version: "3"
+
+vars:
+  DIST_DIR: dist
+  WINDOWS_BINARY: samp-injector-windows-386.exe
+  PACKAGE: ./cmd/samp-injector
+
+tasks:
+  fmt:
+    desc: Format Go source files
+    cmds:
+      - gofumpt -w .
+
+  fmt:check:
+    desc: Check Go formatting
+    cmds:
+      - test -z "$(gofumpt -l .)"
+
+  vet:
+    desc: Run vet for native and Windows 386 packages
+    cmds:
+      - go vet ./...
+      - GOOS=windows GOARCH=386 CGO_ENABLED=0 go vet ./...
+
+  lint:
+    desc: Run lint for native and Windows 386 packages
+    cmds:
+      - golangci-lint run ./...
+      - GOOS=windows GOARCH=386 CGO_ENABLED=0 golangci-lint run ./...
+
+  test:
+    desc: Run the portable test suite
+    cmds:
+      - go test -race -shuffle=on -count=1 ./...
+
+  build:
+    desc: Build the Windows 386 executable
+    cmds:
+      - mkdir -p {{.DIST_DIR}}
+      - GOOS=windows GOARCH=386 CGO_ENABLED=0 go build -trimpath -o {{.DIST_DIR}}/{{.WINDOWS_BINARY}} {{.PACKAGE}}
+
+  check:
+    desc: Run formatting, vet, lint, and tests
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: lint
+      - task: test
+
+  ci:
+    desc: Run all local checks and build the release executable
+    cmds:
+      - task: check
+      - task: build
